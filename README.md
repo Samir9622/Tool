@@ -592,5 +592,342 @@ footer {
     .features {
         grid-template-columns: 1fr;
     }
+}<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Compression Tool</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- Important: Load CompressorJS before your script -->
+    <script src="https://cdn.jsdelivr.net/npm/compressorjs@1.1.1/dist/compressor.min.js"></script>
+    <script src="script.js" defer></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Image Compression Tool</h1>
+        <p>Reduce image size without losing quality</p>
+        
+        <div id="drop-area">
+            <p>Drag & Drop Your Images Here</p>
+            <p>Or</p>
+            <button id="select-files-btn">Select Files</button>
+        </div>
+        
+        <div id="preview" class="hidden"></div>
+        
+        <div class="settings">
+            <h3>Compression Settings</h3>
+            <label>
+                Compression Level: <span id="level-value">80%</span>
+                <input type="range" id="compression-level" min="0" max="100" value="80">
+            </label>
+            <button id="compress-btn" disabled>Compress Images</button>
+        </div>
+        
+        <div id="results" class="hidden"></div>
+    </div>
+    
+    <div id="loading" class="hidden">Processing...</div>
+</body>
+</html>
+body {
+    font-family: Arial, sans-serif;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
 }
+
+h1 {
+    text-align: center;
+    color: #3f51b5;
+}
+
+#drop-area {
+    border: 2px dashed #3f51b5;
+    border-radius: 8px;
+    padding: 40px;
+    text-align: center;
+    margin: 20px 0;
+    cursor: pointer;
+}
+
+#drop-area.highlight {
+    background-color: rgba(63, 81, 181, 0.1);
+}
+
+button {
+    background-color: #3f51b5;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 10px 20px;
+    cursor: pointer;
+}
+
+button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.settings {
+    margin: 20px 0;
+    padding: 20px;
+    background-color: #f5f5f5;
+    border-radius: 8px;
+}
+
+.preview-item {
+    display: inline-block;
+    margin: 10px;
+    position: relative;
+}
+
+.preview-item img {
+    max-width: 150px;
+    max-height: 150px;
+    border-radius: 4px;
+}
+
+.remove-btn {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    background: rgba(0,0,0,0.7);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    line-height: 20px;
+    text-align: center;
+    padding: 0;
+}
+
+.result-item {
+    margin: 10px 0;
+    padding: 10px;
+    border-bottom: 1px solid #ddd;
+}
+
+#loading {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255,255,255,0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 24px;
+    z-index: 1000;
+}
+
+.hidden {
+    display: none;
+}
+document.addEventListener('DOMContentLoaded', function() {
+    // Elements
+    const dropArea = document.getElementById('drop-area');
+    const selectBtn = document.getElementById('select-files-btn');
+    const previewArea = document.getElementById('preview');
+    const compressionLevel = document.getElementById('compression-level');
+    const levelValue = document.getElementById('level-value');
+    const compressBtn = document.getElementById('compress-btn');
+    const resultsArea = document.getElementById('results');
+    const loadingOverlay = document.getElementById('loading');
+    
+    // Create hidden file input
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.multiple = true;
+    fileInput.accept = 'image/*';
+    fileInput.style.display = 'none';
+    document.body.appendChild(fileInput);
+    
+    // State
+    let selectedFiles = [];
+    
+    // Event listeners
+    compressionLevel.addEventListener('input', function() {
+        levelValue.textContent = this.value + '%';
+    });
+    
+    // Drag and drop
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(event => {
+        dropArea.addEventListener(event, preventDefaults, false);
+    });
+    
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    
+    ['dragenter', 'dragover'].forEach(event => {
+        dropArea.addEventListener(event, () => dropArea.classList.add('highlight'));
+    });
+    
+    ['dragleave', 'drop'].forEach(event => {
+        dropArea.addEventListener(event, () => dropArea.classList.remove('highlight'));
+    });
+    
+    dropArea.addEventListener('drop', function(e) {
+        handleFiles(e.dataTransfer.files);
+    });
+    
+    // File selection
+    selectBtn.addEventListener('click', () => fileInput.click());
+    
+    fileInput.addEventListener('change', function() {
+        if (this.files.length > 0) {
+            handleFiles(this.files);
+        }
+    });
+    
+    // Process files
+    function handleFiles(files) {
+        selectedFiles = Array.from(files).filter(file => file.type.startsWith('image/'));
+        
+        if (selectedFiles.length === 0) {
+            alert('Please select valid image files.');
+            return;
+        }
+        
+        updatePreview();
+        compressBtn.disabled = false;
+    }
+    
+    function updatePreview() {
+        previewArea.innerHTML = '';
+        previewArea.classList.remove('hidden');
+        
+        selectedFiles.forEach((file, index) => {
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                const previewItem = document.createElement('div');
+                previewItem.className = 'preview-item';
+                
+                const img = document.createElement('img');
+                img.src = e.target.result;
+                img.alt = file.name;
+                
+                const removeBtn = document.createElement('button');
+                removeBtn.className = 'remove-btn';
+                removeBtn.textContent = '×';
+                removeBtn.onclick = function() {
+                    selectedFiles.splice(index, 1);
+                    updatePreview();
+                    if (selectedFiles.length === 0) {
+                        compressBtn.disabled = true;
+                    }
+                };
+                
+                previewItem.appendChild(img);
+                previewItem.appendChild(removeBtn);
+                previewArea.appendChild(previewItem);
+            };
+            
+            reader.readAsDataURL(file);
+        });
+    }
+    
+    // Compression
+    compressBtn.addEventListener('click', function() {
+        if (selectedFiles.length === 0) return;
+        
+        loadingOverlay.classList.remove('hidden');
+        resultsArea.innerHTML = '';
+        resultsArea.classList.add('hidden');
+        
+        const quality = compressionLevel.value / 100;
+        let processedCount = 0;
+        const results = [];
+        
+        selectedFiles.forEach(file => {
+            // Check if Compressor is available
+            if (typeof Compressor !== 'function') {
+                alert('Compression library not loaded. Please check your internet connection and try again.');
+                loadingOverlay.classList.add('hidden');
+                return;
+            }
+            
+            new Compressor(file, {
+                quality: quality,
+                success(compressedFile) {
+                    results.push({
+                        original: file,
+                        compressed: compressedFile,
+                        name: file.name,
+                        originalSize: file.size,
+                        compressedSize: compressedFile.size
+                    });
+                    
+                    processedCount++;
+                    if (processedCount === selectedFiles.length) {
+                        displayResults(results);
+                    }
+                },
+                error(err) {
+                    console.error(err);
+                    alert(`Error compressing ${file.name}: ${err.message}`);
+                    
+                    processedCount++;
+                    if (processedCount === selectedFiles.length) {
+                        displayResults(results);
+                    }
+                }
+            });
+        });
+    });
+    
+    function displayResults(results) {
+        loadingOverlay.classList.add('hidden');
+        resultsArea.classList.remove('hidden');
+        
+        results.forEach(result => {
+            const savings = ((result.originalSize - result.compressedSize) / result.originalSize * 100).toFixed(1);
+            
+            const resultItem = document.createElement('div');
+            resultItem.className = 'result-item';
+            
+            const resultInfo = document.createElement('div');
+            resultInfo.innerHTML = `
+                <strong>${result.name}</strong><br>
+                Original: ${formatFileSize(result.originalSize)} → 
+                New: ${formatFileSize(result.compressedSize)}
+                (${savings}% smaller)
+            `;
+            
+            const downloadBtn = document.createElement('button');
+            downloadBtn.textContent = 'Download';
+            downloadBtn.onclick = function() {
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(result.compressed);
+                link.download = `compressed_${result.name}`;
+                link.click();
+                URL.revokeObjectURL(link.href);
+            };
+            
+            resultItem.appendChild(resultInfo);
+            resultItem.appendChild(downloadBtn);
+            resultsArea.appendChild(resultItem);
+        });
+    }
+    
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+    
+    // Log initialization for debugging
+    console.log('Image Compression Tool initialized');
+});
+
 https://cdn.jsdelivr.net/npm/compressorjs@1.1.1/dist/compressor.min.js
