@@ -931,3 +931,8 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 https://cdn.jsdelivr.net/npm/compressorjs@1.1.1/dist/compressor.min.js
+document.addEventListener('DOMContentLoaded', () => {
+    // DOM Elements
+    const elements = {
+        dropArea: document.getElementById('drop-area'),
+        selectBtn: document.getElementById('select-files-btn'),
