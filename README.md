@@ -777,7 +777,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // File selection
-    selectBtn.addEventListener('click', () => fileInput.click());
+    selectBtn.addEventListener,('click', () => fileInput.click());
     
     fileInput.addEventListener('change', function() {
         if (this.files.length > 0) {
